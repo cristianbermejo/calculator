@@ -92,6 +92,7 @@ class _CalculatorHomePageState extends State<CalculatorHomePage> {
         }
       }
 
+      // FIXME Positive values switch to negative in some cases
       // If the number we're concatenating to is negative, the number to
       // concatenate should be negative too
       if (_numbers[0].isNegative) {
@@ -103,13 +104,14 @@ class _CalculatorHomePageState extends State<CalculatorHomePage> {
       // numbers to the fractional part
       double newValue = (_numbers[0] * (!_fractional ? 10 : 1)) + number;
 
-      // FIXME Overflowed numbers still goes through in some cases
       // Only update the value if that won't result in an overflow
       // This if logic goes as follows:
       // - If the number is positive, its power of 10 should be a greater number
       // - If the number is zero, it's power of 10 should be also zero
       // - If the number is negative, its power of 10 should be a lower number
-      if (!_numbers[0].isNegative == (newValue >= _numbers[0])) {
+      if ((!_numbers[0].isNegative == (newValue >= _numbers[0]))
+        && newValue.isFinite) {
+
         setState(() => _numbers[0] = newValue);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -148,6 +150,7 @@ class _CalculatorHomePageState extends State<CalculatorHomePage> {
     _numbers[1] = _numbers[0];
     _numbers[0] = 0;
     _operatorFunction = operatorFunction;
+    _equalsButtonPressed = false;
   });
 
   void _handleDecimalPointButtonPress() => setState(() {
@@ -155,20 +158,24 @@ class _CalculatorHomePageState extends State<CalculatorHomePage> {
   });
 
   void _handleEqualsButtonPress() {
-    // FIXME Operator function returns null sometimes
     double result = _operatorFunction();
-
-    if (_equalsButtonPressed) {
-      // The numbers have already been flipped and booleans have been set,
-      // update the result only
-      setState(() => _numbers[0] = result);
+    if (result.isFinite) {
+      if (_equalsButtonPressed) {
+        // The numbers have already been flipped and booleans have been set,
+        // update the result only
+        setState(() => _numbers[0] = result);
+      } else {
+        setState(() {
+          _numbers[1] = _numbers[0];
+          _numbers[0] = result;
+          _fractional = false;
+          _equalsButtonPressed = true;
+        });
+      }
     } else {
-      setState(() {
-        _numbers[1] = _numbers[0];
-        _numbers[0] = result;
-        _fractional = false;
-        _equalsButtonPressed = true;
-      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text("Unable to perform operation.")
+      ));
     }
   }
 
