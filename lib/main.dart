@@ -32,14 +32,17 @@ class CalculatorHomePage extends StatefulWidget {
 }
 
 class _CalculatorHomePageState extends State<CalculatorHomePage> {
-  List<int> _numbers = [0, 0];
+  // TODO Look for an alternative to double for decimal numbers
+  // double seems to have many precision issues, results are unexpected
+  List<double> _numbers = [0, 0];
+  bool _fractional = false;
   Function _operatorFunction = () {};
   bool _equalsButtonPressed = false;
 
   void _handleButtonPress(String label) {
     int? number = int.tryParse(label);
     if (number != null) {
-      _handleNumericButtonPress(number);
+      _handleNumericButtonPress(number.toDouble());
     } else if (label == "C") {
       _handleClearButtonPress();
     } else if (label == "±") {
@@ -63,7 +66,7 @@ class _CalculatorHomePageState extends State<CalculatorHomePage> {
     }
   }
 
-  void _handleNumericButtonPress(int number) {
+  void _handleNumericButtonPress(double number) {
     // Reset the variables if the last button pressed was the equals
     if (_equalsButtonPressed) {
       _numbers[0] = 0;
@@ -72,8 +75,23 @@ class _CalculatorHomePageState extends State<CalculatorHomePage> {
       _equalsButtonPressed = false;
     }
 
-    // Don't add leading zeros
+    // Don't add leading zeros to the integer part
     if (_numbers[0] > 0 || number > 0) {
+      if (_fractional) {
+        if (_numbers[0] == _numbers[0].truncate()) {
+          number = number / 10;
+        } else {
+          double fractionalPart = _numbers[0] - _numbers[0].truncate();
+          int decimalPlaces = 1;
+          // FIXME This should work, but doubles are not precise enough
+          while (fractionalPart.ceil() != fractionalPart.floor()) {
+            fractionalPart = fractionalPart * 10 - (fractionalPart * 10).truncate();
+            decimalPlaces++;
+          }
+          number = number / pow(10, decimalPlaces);
+        }
+      }
+
       // If the number we're concatenating to is negative, the number to
       // concatenate should be negative too
       if (_numbers[0].isNegative) {
@@ -81,7 +99,9 @@ class _CalculatorHomePageState extends State<CalculatorHomePage> {
       }
 
       // Calculate the new value
-      int newValue = _numbers[0] * 10 + number;
+      // Only change the position of the current numbers if we're not adding
+      // numbers to the fractional part
+      double newValue = (_numbers[0] * (!_fractional ? 10 : 1)) + number;
 
       // FIXME Overflowed numbers still goes through in some cases
       // Only update the value if that won't result in an overflow
@@ -89,7 +109,6 @@ class _CalculatorHomePageState extends State<CalculatorHomePage> {
       // - If the number is positive, its power of 10 should be a greater number
       // - If the number is zero, it's power of 10 should be also zero
       // - If the number is negative, its power of 10 should be a lower number
-      // Keep in mind that zero is considered a positive number.
       if (!_numbers[0].isNegative == (newValue >= _numbers[0])) {
         setState(() => _numbers[0] = newValue);
       } else {
@@ -102,28 +121,27 @@ class _CalculatorHomePageState extends State<CalculatorHomePage> {
 
   void _handleClearButtonPress() => setState(() {
     _numbers = [0, 0];
+    _fractional = false;
     _operatorFunction = () {};
   });
 
   void _handleChangeSignButtonPress() => setState(() => _numbers[0] = -_numbers[0]);
 
   void _handlePercentButtonPress() {
-    int result;
+    double result;
     if (_operatorFunction != _divideOperatorFunction
       && _operatorFunction != _multiplyOperatorFunction) {
 
-      // TODO Remove truncation
-      result = ((_numbers[1] * _numbers[0]) / 100).truncate();
+      result = ((_numbers[1] * _numbers[0]) / 100);
     } else {
-      result = (_numbers[0] / 100).truncate();
+      result = (_numbers[0] / 100);
     }
 
     setState(() => _numbers[0] = result);
   }
 
   void _handleSquareRootButtonPress() => setState(() {
-    // TODO Remove truncation
-    _numbers[0] = sqrt(_numbers[0]).truncate();
+    _numbers[0] = sqrt(_numbers[0]);
   });
 
   void _handleOperatorButtonPress(Function operatorFunction) => setState(() {
@@ -133,12 +151,12 @@ class _CalculatorHomePageState extends State<CalculatorHomePage> {
   });
 
   void _handleDecimalPointButtonPress() => setState(() {
-    // TODO
+    _fractional = true;
   });
 
   void _handleEqualsButtonPress() {
     // FIXME Operator function returns null sometimes
-    int result = _operatorFunction();
+    double result = _operatorFunction();
 
     if (_equalsButtonPressed) {
       // The numbers have already been flipped and booleans have been set,
@@ -148,13 +166,13 @@ class _CalculatorHomePageState extends State<CalculatorHomePage> {
       setState(() {
         _numbers[1] = _numbers[0];
         _numbers[0] = result;
+        _fractional = false;
         _equalsButtonPressed = true;
       });
     }
   }
 
-  // TODO Remove truncation
-  void _divideOperatorFunction() => (_numbers[1] / _numbers[0]).truncate();
+  void _divideOperatorFunction() => (_numbers[1] / _numbers[0]);
 
   void _multiplyOperatorFunction() => _numbers[1] * _numbers[0];
 
@@ -198,8 +216,6 @@ class _CalculatorHomePageState extends State<CalculatorHomePage> {
       ["1", "2", "3", "−"],
       ["0", ".", "=", "+"],
     ];
-    // TODO Remove this list once all functions are implemented
-    List<String> disabledButtonLabels = ["."];
 
     for (final labels in labelLists) {
       List<Widget> buttons = [];
@@ -210,7 +226,7 @@ class _CalculatorHomePageState extends State<CalculatorHomePage> {
           Expanded(child: Padding(
             padding: const EdgeInsets.all(8.0),
             child: FilledButton.tonal(
-              onPressed: disabledButtonLabels.contains(label) ? null : () => _handleButtonPress(label),
+              onPressed: () => _handleButtonPress(label),
               child: Text(label)
             ),
           ))
