@@ -158,20 +158,20 @@ class _CalculatorHomePageState extends State<CalculatorHomePage> {
   });
 
   void _handleEqualsButtonPress() {
+    // The numbers should only be flipped once
+    if (!_equalsButtonPressed) {
+      double aux = _numbers[0];
+      _numbers[0] = _numbers[1];
+      _numbers[1] = aux;
+    }
+
     double result = _operatorFunction();
     if (result.isFinite) {
-      if (_equalsButtonPressed) {
-        // The numbers have already been flipped and booleans have been set,
-        // update the result only
-        setState(() => _numbers[0] = result);
-      } else {
-        setState(() {
-          _numbers[1] = _numbers[0];
-          _numbers[0] = result;
-          _fractional = false;
-          _equalsButtonPressed = true;
-        });
-      }
+      setState(() {
+        _numbers[0] = result;
+        _fractional = false;
+        _equalsButtonPressed = true;
+      });
     } else {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text("Unable to perform operation.")
@@ -179,13 +179,13 @@ class _CalculatorHomePageState extends State<CalculatorHomePage> {
     }
   }
 
-  void _divideOperatorFunction() => (_numbers[1] / _numbers[0]);
+  void _divideOperatorFunction() => (_numbers[0] / _numbers[1]);
 
-  void _multiplyOperatorFunction() => _numbers[1] * _numbers[0];
+  void _multiplyOperatorFunction() => _numbers[0] * _numbers[1];
 
-  void _substractOperatorFunction() => _numbers[1] - _numbers[0];
+  void _substractOperatorFunction() => _numbers[0] - _numbers[1];
 
-  void _addOperatorFunction() => _numbers[1] + _numbers[0];
+  void _addOperatorFunction() => _numbers[0] + _numbers[1];
 
   @override
   Widget build(BuildContext context) {
